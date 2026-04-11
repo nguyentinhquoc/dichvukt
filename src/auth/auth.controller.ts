@@ -18,7 +18,6 @@ export class AuthController {
     };
   }
 
-
   @Public()
   @Post('login')
   async login(
@@ -27,12 +26,11 @@ export class AuthController {
     @Res() res: Response,
   ) {
       const result = await this.authService.login(username, password);
-      // Set cookie với token (httpOnly để bảo mật)
       res.cookie('access_token', result.access_token, {
         httpOnly: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
-      return res.status(HttpStatus.OK).json(result);
+      return res.redirect('/');
   }
   
   @Public()

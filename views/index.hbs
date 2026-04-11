@@ -1,192 +1,179 @@
-<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-7xl mx-auto">
-        <!-- Header with user info -->
-        <div class="flex justify-between items-center mb-8">
-            <div class="text-center flex-1">
-                <h1 class="text-4xl font-extrabold text-gray-900 mb-4">{{title}}</h1>
-                <p class="text-xl text-gray-600">{{message}}</p>
+<div class="container py-5">
+    <div class="mx-auto" style="max-width:1200px;">
+
+        <!-- Header -->
+        <h4 class="fw-bold mb-4">Công cụ xem file Excel</h4>
+
+        <!-- Upload -->
+        <div class="card shadow mb-4 border-start border-4 border-primary">
+            <div class="card-body">
+
+                <h5 class="fw-bold mb-3 text-primary">📊 Tải lên File Excel</h5>
+
+                <form action="/upload-excel" method="POST" enctype="multipart/form-data">
+
+                    <!-- File input -->
+                    <div class="mb-3">
+                        <label for="excelFile" class="form-label fw-semibold">Chọn file Excel</label>
+                        <input class="form-control" type="file" name="file" id="excelFile" accept=".xlsx,.xls" required>
+                        <div class="form-text" id="fileSubtext">.xlsx hoặc .xls</div>
+                    </div>
+
+                    <!-- Tỷ giá -->
+                    <div class="mb-3">
+                        <label for="tyGiaThayDoi" class="form-label">Tỉ giá (%)</label>
+                        <input type="number" id="tyGiaThayDoi" name="tyGiaThayDoi" class="form-control" placeholder="8.12" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        Tải lên và xem dữ liệu
+                    </button>
+                </form>
+
             </div>
-            <div class="flex items-center space-x-4">
-                <div class="text-right">
-                    <p class="text-sm text-gray-600">Xin chào, <span id="user-name" class="font-semibold text-gray-900"></span></p>
-                    <p class="text-xs text-gray-500">Mã: <span id="user-code"></span></p>
+        </div>
+
+        <!-- DATA GỐC -->
+        {{#if jsonDataGoc}}
+        <div class="card shadow mb-4 border-start border-4 border-success">
+            <div class="card-body">
+
+                <h5 class="fw-bold mb-2">📋 Dữ liệu gốc</h5>
+                <p class="text-muted">
+                    File: <b>{{fileName}}</b> |
+                    Số dòng: <b>{{jsonDataGoc.length}}</b>
+                </p>
+
+                <div class="table-responsive" style="max-height:500px;">
+                    <table id="table-jsonDataGoc" class="table table-bordered table-hover">
+                        <thead class="table-success">
+                            <tr>
+                                {{#each jsonDataGoc.[0]}}
+                                <th>{{@key}}</th>
+                                {{/each}}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each jsonDataGoc}}
+                            <tr>
+                                {{#each this}}
+                                <td>{{this}}</td>
+                                {{/each}}
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
                 </div>
-                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-md">
-                    Đăng xuất
+
+                <button class="btn btn-success"
+                        onclick="exportTableToExcel('table-jsonDataGoc', '{{fileName}}')">
+                    Xuất Excel
                 </button>
             </div>
         </div>
-        
-        <!-- Upload Section -->
-        <div class="bg-red rounded-lg shadow-lg p-8 mb-8 border-l-4 border-blue-500 hover:shadow-xl transition-shadow">
-            <div class="flex items-center mb-6">
-                <span class="text-3xl mr-3">📊</span>
-                <h2 class="text-2xl font-bold text-gray-900">Tải lên File Excel</h2>
-            </div>
-            <form action="/upload-excel" method="POST" enctype="multipart/form-data" class="space-y-6">
-                <div class="relative">
-                    <input type="file" name="file" id="excelFile" accept=".xlsx,.xls" required class="hidden">
-                    <label for="excelFile" class="flex flex-col items-center justify-center w-full px-6 py-12 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 bg-gray-50" id="fileLabel">
-                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                            <span class="text-5xl mb-3" id="fileIcon">📁</span>
-                            <p class="text-lg font-semibold text-gray-700" id="fileText">Chọn file Excel</p>
-                            <p class="text-sm text-gray-500 mt-2" id="fileSubtext">.xlsx hoặc .xls</p>
-                        </div>
-                    </label>
-                </div>
-                 <div>
-            <label for="tyGiaThayDoi" class="block mb-2.5 text-sm font-medium text-heading">Tỉ giá</label>
-            <input required type="number" id="tyGiaThayDoi" name="tyGiaThayDoi" class="bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand block w-full px-3 py-2.5 shadow-xs placeholder:text-body" placeholder="8,12"  />
-        </div>
-                <button type="submit" class="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-md">Tải lên và xem dữ liệu</button>
-            </form>
-        </div>
-
-
-        {{#if jsonDataGoc}}
-        <div class="bg-white rounded-lg shadow-lg p-8 mb-8 border-l-4 border-green-500 hover:shadow-xl transition-shadow">
-            <div class="flex items-center mb-6">
-                <span class="text-3xl mr-3">📋</span>
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-900">Dữ liệu gốc</h3>
-                    <p class="text-sm text-gray-500 mt-1">File: <span class="font-semibold text-gray-700">{{fileName}}</span> | Số dòng: <span class="font-semibold text-gray-700">{{jsonDataGoc.length}}</span></p>
-                </div>
-            </div>
-            
-            <div class="overflow-x-auto mb-6 max-h-100">
-                <table id="table-jsonDataGoc" class="min-w-full divide-y divide-gray-200 border border-gray-300 rounded-lg overflow-hidden">
-                    <thead class="bg-gradient-to-r from-green-500 to-emerald-600">
-                        <tr>
-                            {{#each jsonDataGoc.[0]}}
-                            <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">{{@key}}</th>
-                            {{/each}}
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {{#each jsonDataGoc}}
-                        <tr class="hover:bg-gray-50 transition-colors">
-                            {{#each this}}
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{this}}</td>
-                            {{/each}}
-                        </tr>
-                        {{/each}}
-                    </tbody>
-                </table>
-            </div>
-            <button class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-md" onclick="exportTableToExcel('table-jsonDataGoc', '{{fileName}}')">📥 Xuất Excel - Dữ liệu gốc</button>
-        </div>
         {{/if}}
 
-
-
+        <!-- DANH MỤC -->
         {{#if danhMucSanPham}}
-        <div class="bg-white rounded-lg shadow-lg p-8 mb-8 border-l-4 border-green-500 hover:shadow-xl transition-shadow">
-            <div class="flex items-center mb-6">
-                <span class="text-3xl mr-3">📋</span>
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-900">Dữ liệu danh mục</h3>
-                    <p class="text-sm text-gray-500 mt-1">File: <span class="font-semibold text-gray-700">{{fileName}}</span> | Số dòng: <span class="font-semibold text-gray-700">{{danhMucSanPham.length}}</span></p>
-                    <p class="text-sm text-gray-500 mt-1">Tỉ giá: <span class="font-semibold text-gray-700">{{tyGiaThayDoi}}</span>%</p>
+        <div class="card shadow mb-4 border-start border-4 border-success">
+            <div class="card-body">
 
+                <h5 class="fw-bold mb-2">📋 Dữ liệu danh mục</h5>
+                <p class="text-muted">
+                    File: <b>{{fileName}}</b> |
+                    Số dòng: <b>{{danhMucSanPham.length}}</b> |
+                    Tỉ giá: <b>{{tyGiaThayDoi}}%</b>
+                </p>
+
+                <div class="table-responsive" style="max-height:500px;">
+                    <table id="table-danhMucSanPham" class="table table-bordered table-hover">
+                        <thead class="table-success">
+                            <tr>
+                                {{#each danhMucSanPham.[0]}}
+                                <th>{{@key}}</th>
+                                {{/each}}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each danhMucSanPham}}
+                            <tr>
+                                {{#each this}}
+                                <td>{{this}}</td>
+                                {{/each}}
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-            
-            <div class="overflow-x-auto mb-6 max-h-100">
-                <table id="table-danhMucSanPham" class="min-w-full divide-y divide-gray-200 border border-gray-300 rounded-lg overflow-hidden">
-                                <button class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-md" onclick="exportTableToExcel('table-danhMucSanPham', '{{fileName}}')">📥 Xuất Excel - Dữ liệu danh mục</button>
-                    <thead class="bg-gradient-to-r from-green-500 to-emerald-600">
-                        <tr>
-                            {{#each danhMucSanPham.[0]}}
-                            <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">{{@key}}</th>
-                            {{/each}}
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {{#each danhMucSanPham}}
-                        <tr class="hover:bg-gray-50 transition-colors">
-                            {{#each this}}
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{this}}</td>
-                            {{/each}}
-                        </tr>
-                        {{/each}}
-                    </tbody>
-                </table>
+
+                <button class="btn btn-success"
+                        onclick="exportTableToExcel('table-danhMucSanPham', '{{fileName}}')">
+                    Xuất Excel
+                </button>
             </div>
         </div>
         {{/if}}
 
-  {{#if nhapLieu}}
-        <div class="bg-white rounded-lg shadow-lg p-8 mb-8 border-l-4 border-green-500 hover:shadow-xl transition-shadow">
-            <div class="flex items-center mb-6">
-                <span class="text-3xl mr-3">📋</span>
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-900">Dữ liệu nhập liệu</h3>
-                    <p class="text-sm text-gray-500 mt-1">File: <span class="font-semibold text-gray-700">{{fileName}}</span> | Số dòng: <span class="font-semibold text-gray-700">{{nhapLieu.length}}</span></p>
-                </div>
-            </div>
-            <div class="overflow-x-auto mb-6 max-h-100">
-                <table id="table-nhapLieu" class="min-w-full divide-y divide-gray-200 border border-gray-300 rounded-lg overflow-hidden">
-                                <button class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-md" onclick="exportTableToExcel('table-nhapLieu', '{{fileName}}')">📥 Xuất Excel - Nhập liệu</button>
-                    <thead class="bg-gradient-to-r from-green-500 to-emerald-600">
-                        <tr>
-                            {{#each nhapLieu.[0]}}
-                            <th class="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">{{@key}}</th>
-                            {{/each}}
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {{#each nhapLieu}}
-                        <tr class="hover:bg-gray-50 transition-colors">
-                            {{#each this}}
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{this}}</td>
-                            {{/each}}
-                        </tr>
-                        {{/each}}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        {{/if}}
-        
+        <!-- NHẬP LIỆU -->
+        {{#if nhapLieu}}
+        <div class="card shadow mb-4 border-start border-4 border-success">
+            <div class="card-body">
 
-    {{#if error}}
-        <div class="bg-red-50 border-l-4 border-red-500 rounded-lg p-6 mb-8 shadow-md">
-            <div class="flex items-center">
-                <span class="text-3xl mr-3">❌</span>
-                <div>
-                    <h3 class="text-lg font-bold text-red-900">Lỗi</h3>
-                    <p class="text-red-700 mt-1">{{error}}</p>
+                <h5 class="fw-bold mb-2">📋 Dữ liệu nhập liệu</h5>
+                <p class="text-muted">
+                    File: <b>{{fileName}}</b> |
+                    Số dòng: <b>{{nhapLieu.length}}</b>
+                </p>
+
+                <div class="table-responsive" style="max-height:500px;">
+                    <table id="table-nhapLieu" class="table table-bordered table-hover">
+                        <thead class="table-success">
+                            <tr>
+                                {{#each nhapLieu.[0]}}
+                                <th>{{@key}}</th>
+                                {{/each}}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each nhapLieu}}
+                            <tr>
+                                {{#each this}}
+                                <td>{{this}}</td>
+                                {{/each}}
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
                 </div>
+
+                <button class="btn btn-success"
+                        onclick="exportTableToExcel('table-nhapLieu', '{{fileName}}')">
+                    Xuất Excel
+                </button>
             </div>
         </div>
         {{/if}}
-        
-        <!-- Guide Section -->
-        <div class="mt-10 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-lg p-8 border-l-4 border-blue-500">
-            <div class="flex items-center mb-6">
-                <span class="text-3xl mr-3">💡</span>
-                <h2 class="text-2xl font-bold text-gray-900">Hướng dẫn sử dụng</h2>
+
+        <!-- ERROR -->
+        {{#if error}}
+        <div class="alert alert-danger">
+            <strong>Lỗi:</strong> {{error}}
+        </div>
+        {{/if}}
+
+        <!-- GUIDE -->
+        <div class="card shadow">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3">💡 Hướng dẫn sử dụng</h5>
+                <ol class="mb-0">
+                    <li>Chọn file Excel (.xlsx hoặc .xls)</li>
+                    <li>Nhấn "Tải lên và xem dữ liệu"</li>
+                    <li>Dữ liệu sẽ hiển thị dạng bảng</li>
+                    <li>Hỗ trợ tất cả định dạng Excel phổ biến</li>
+                </ol>
             </div>
-            <ul class="space-y-3 text-gray-700">
-                <li class="flex items-start">
-                    <span class="text-blue-500 font-bold mr-3 text-lg">1.</span>
-                    <span>Chọn file Excel (.xlsx hoặc .xls) từ máy tính của bạn</span>
-                </li>
-                <li class="flex items-start">
-                    <span class="text-blue-500 font-bold mr-3 text-lg">2.</span>
-                    <span>Nhấn nút "Tải lên và xem dữ liệu"</span>
-                </li>
-                <li class="flex items-start">
-                    <span class="text-blue-500 font-bold mr-3 text-lg">3.</span>
-                    <span>Dữ liệu từ sheet đầu tiên sẽ được hiển thị dưới dạng bảng</span>
-                </li>
-                <li class="flex items-start">
-                    <span class="text-blue-500 font-bold mr-3 text-lg">4.</span>
-                    <span>Hỗ trợ tất cả các định dạng Excel phổ biến</span>
-                </li>
-            </ul>
-        </div<li>Hỗ trợ tất cả các định dạng Excel phổ biến</li>
-        </ul>
+        </div>
+
     </div>
 </div>
 

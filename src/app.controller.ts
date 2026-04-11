@@ -83,7 +83,7 @@ export class AppController {
       const isSoHDDuplicate = index > 0 && jsonDataGoc[index - 1].SO_HD === row.SO_HD;
         return {
           'Số chứng từ (*)': isSoHDDuplicate ? '' : row.SO_HD,
-            'Ngày chứng từ (*)': isSoHDDuplicate ? '' : new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+          'Ngày chứng từ (*)': isSoHDDuplicate ? '' : new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
           'Mã đối tượng': isSoHDDuplicate ? '' : row.MAKH,
           'Tên đối tượng': isSoHDDuplicate ? '' : row.TENKH,
           'Tổng tiền hàng': isSoHDDuplicate ? '' : Math.round(row.TTVND_TT),
