@@ -12,14 +12,12 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import * as XLSX from 'xlsx';
 import { AppService } from './app.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-
 interface UploadedFileType {
   buffer: Buffer;
   originalname: string;
   mimetype: string;
   size: number;
 }
-
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class AppController {
@@ -64,14 +62,13 @@ export class AppController {
           });
           return cleanRow;
         });
-
         const danhMucSanPham = jsonDataGoc.map((row: any) => ({
           'Mã sản phẩm (*)': row.MADMNO,
           'Tên sản phẩm (*)': row.TENDM,
-        'Barcode': '',
+          'Barcode': '',
           'Nhóm sản phẩm': '',
           'Giá nhập': Math.round(row.DGVND),
-          'Giá bán (*)': Math.round(row.DGVND * (1 + tyGiaThayDoi / 100)), // tỉ giá thay đổi bằng 8 là 8% 
+          'Giá bán (*)': Math.round(row.DGVND * (1 + tyGiaThayDoi / 100)),  
           'Đơn vị tính': row.DONVI,
           'Theo dõi hàng tồn kho': 'Có',
           'Số lượng tồn kho' : '0',
@@ -81,15 +78,12 @@ export class AppController {
           'Mô tả': '',
           'Thuế giảm trừ': '',
           'Nhóm ngành nghề tính thuế': ''
-
-
         }));
-        // console.log("🚀 ~ AppController ~ uploadExcel ~ danhMucSanPham:", danhMucSanPham)
-const nhapLieu = jsonDataGoc.map((row: any, index: number) => {
+      const nhapLieu = jsonDataGoc.map((row: any, index: number) => {
       const isSoHDDuplicate = index > 0 && jsonDataGoc[index - 1].SO_HD === row.SO_HD;
         return {
           'Số chứng từ (*)': isSoHDDuplicate ? '' : row.SO_HD,
-          'Ngày chứng từ (*)': isSoHDDuplicate ? '' : new Date().toLocaleDateString('vi-VN'),
+            'Ngày chứng từ (*)': isSoHDDuplicate ? '' : new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
           'Mã đối tượng': isSoHDDuplicate ? '' : row.MAKH,
           'Tên đối tượng': isSoHDDuplicate ? '' : row.TENKH,
           'Tổng tiền hàng': isSoHDDuplicate ? '' : Math.round(row.TTVND_TT),
@@ -103,7 +97,7 @@ const nhapLieu = jsonDataGoc.map((row: any, index: number) => {
           'Số lượng (*)': row.LUONG,
           'Đơn giá': row.DGVND,
           'Thành tiền': Math.round(row.TTVND),
-          'Mã lô (*)': new Date().toLocaleDateString('vi-VN').replace(/\//g, ''), // ngày hiện tại ví dụ 09/04/2026 thì sẽ là 09042026
+            'Mã lô (*)': new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, ''), // ngày hiện tại ví dụ 09/04/2026 thì sẽ là 09042026
           'Ngày sản xuất': '',
           'Hạn sử dụng': '',
           'Lượng hàng (*)': row.LUONG

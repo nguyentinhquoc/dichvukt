@@ -5,13 +5,12 @@ import { Public } from './public.decorator';
 import * as bcrypt from 'bcrypt';
 
 @Controller('auth')
-@Public()
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+
+  @Public()
   @Get('login')
-  // tuyetvan
-  // tuyetvan123@
   @Render('login')
   loginPage() {
     return {
@@ -19,6 +18,8 @@ export class AuthController {
     };
   }
 
+
+  @Public()
   @Post('login')
   async login(
     @Body('username') username: string,
@@ -34,6 +35,7 @@ export class AuthController {
       return res.status(HttpStatus.OK).json(result);
   }
   
+  @Public()
   @Get('logout')
   logout(@Res() res: Response) {
     res.clearCookie('access_token');

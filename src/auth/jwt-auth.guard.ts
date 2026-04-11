@@ -57,9 +57,6 @@ export class JwtAuthGuard implements CanActivate {
       return true;
     } catch (error) {
       // Token hết hạn hoặc không hợp lệ
-      if (error.message === 'ACCOUNT_LOCKED') {
-        throw new UnauthorizedException('ACCOUNT_LOCKED');
-      }
       throw new UnauthorizedException('INVALID_TOKEN');
     }
   }

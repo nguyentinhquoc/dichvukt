@@ -9,6 +9,6 @@ export class AuthExceptionFilter implements ExceptionFilter {
     // Clear cookie nếu có
     response.clearCookie('access_token');
     // Redirect về trang login
-    response.redirect('/auth/login');
+    return response.redirect('/auth/login');
   }
 }
