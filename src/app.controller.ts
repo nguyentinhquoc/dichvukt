@@ -103,7 +103,7 @@ const nhapLieu = jsonDataGoc.map((row: any, index: number) => {
           'Số lượng (*)': row.LUONG,
           'Đơn giá': row.DGVND,
           'Thành tiền': Math.round(row.TTVND),
-          'Mã lô (*)': row.MALO,
+          'Mã lô (*)': new Date().toLocaleDateString('vi-VN').replace(/\//g, ''), // ngày hiện tại ví dụ 09/04/2026 thì sẽ là 09042026
           'Ngày sản xuất': '',
           'Hạn sử dụng': '',
           'Lượng hàng (*)': row.LUONG
