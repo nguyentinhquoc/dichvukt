@@ -15,6 +15,7 @@ export class AuthController {
   loginPage() {
     return {
       title: 'Đăng nhập hệ thống',
+      layout: false,
     };
   }
 
@@ -30,7 +31,8 @@ export class AuthController {
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
-      return res.redirect('/');
+      console.log(123333)
+      return res.redirect('/tao-phieu-nhap');
   }
   
   @Public()

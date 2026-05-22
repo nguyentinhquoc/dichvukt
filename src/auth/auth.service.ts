@@ -41,7 +41,6 @@ export class AuthService {
   async login(username: string, password: string) {
     const user = await this.userRepository.findOne({ where: { username } });
 
-    console.log('User found:', user);
 
     if (!user) {
       throw new UnauthorizedException('Sai tài khoản');

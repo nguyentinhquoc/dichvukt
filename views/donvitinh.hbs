@@ -1,0 +1,298 @@
+<div class="container py-5">
+    <div class="mx-auto" style="max-width:1200px;">
+
+        <!-- Header -->
+        <h4 class="fw-bold mb-4">Công cụ kiểm tra đơn vị tính</h4>
+
+        <!-- Upload -->
+        <div class="card shadow mb-4 border-start border-4 border-primary">
+            <div class="card-body">
+
+                <h5 class="fw-bold mb-3 text-primary">📊 Tải lên File Excel</h5>
+
+                <form action="/don-vi-tinh/upload-excel" method="POST" enctype="multipart/form-data">
+
+                    <!-- File input -->
+                    <div class="mb-3">
+                        <label for="excelFile" class="form-label fw-semibold">Chọn file Excel</label>
+                        <input class="form-control" type="file" name="file" id="excelFile" accept=".xlsx,.xls" required>
+                        <div class="form-text" id="fileSubtext">.xlsx hoặc .xls</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        Tải lên và xem dữ liệu
+                    </button>
+                </form>
+
+            </div>
+        </div>
+
+        <!-- DATA GỐC -->
+        {{#if jsonDataGoc}}
+        <div class="card shadow mb-4 border-start border-4 border-success">
+            <div class="card-body">
+
+                <h5 class="fw-bold mb-2">📋 Dữ liệu gốc</h5>
+                <p class="text-muted">
+                    File: <b>{{fileName}}</b> |
+                    Số dòng: <b>{{jsonDataGoc.length}}</b>
+                </p>
+
+                <div class="table-responsive" style="max-height:500px;">
+                    <table id="table-jsonDataGoc" class="table table-bordered table-hover">
+                        <thead class="table-success">
+                            <tr>
+                                {{#each jsonDataGoc.[0]}}
+                                <th>{{@key}}</th>
+                                {{/each}}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each jsonDataGoc}}
+                            <tr>
+                                {{#each this}}
+                                <td>{{this}}</td>
+                                {{/each}}
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                </div>
+
+                <button class="btn btn-success"
+                        onclick="exportTableToExcel('table-jsonDataGoc', 'Dữ_liệu_gốc')">
+                    Xuất Excel
+                </button>
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- DANH MỤC -->
+        {{#if dataCheck}}
+        <div class="card shadow mb-4 border-start border-4 border-success">
+            <div class="card-body">
+
+                <h5 class="fw-bold mb-2">📋 Dữ liệu kiểm tra Đơn vị</h5>
+                <p class="text-muted">
+                    File: <b>{{fileName}}</b> |
+                    Số dòng: <b>{{dataCheck.length}}</b> |
+                    Tỉ giá: <b>{{tyGiaThayDoi}}%</b>
+                </p>
+
+                <div class="table-responsive" style="max-height:500px;">
+                    <table id="table-dataCheck" class="table table-bordered table-hover">
+                        <thead class="table-success">
+                            <tr>
+                                <th>Dòng</th>
+                                <th>SOCT</th>
+
+                                <th>MADMNO</th>
+                                
+                                <th>TENDM</th>
+                                <th>DONVI</th>
+                                <th>Status</th>
+                                <th>NGAYCT</th>
+
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each dataCheck}}
+                            <tr style="background-color: #ffcccc; font-weight: bold;">
+                                <td>{{this.DONG}}</td>
+                                <td>{{this.SOCT}}</td>
+                                <td>{{this.MADMNO}}</td>
+                                <td>{{this.TENDM}}</td>
+                                <td>{{this.DONVI}}</td>
+                                <td>{{this.Status}}</td>
+                                <td>{{this.NGAYCT}}</td>
+
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                </div>
+
+                <button class="btn btn-success"
+                        onclick="exportTableToExcel('table-dataCheck', 'Kiểm_tra_Đơn_vị')">
+                    Xuất Excel
+                </button>
+            </div>
+        </div>
+        {{/if}}
+
+        <!-- DANH MỤC 2 -->
+        {{#if dataCheck2}}
+        <div class="card shadow mb-4 border-start border-4 border-warning">
+            <div class="card-body">
+
+                <h5 class="fw-bold mb-2">📋 Dữ liệu kiểm tra Đơn vị CTU</h5>
+                <p class="text-muted">
+                    File: <b>{{fileName}}</b> |
+                    Số dòng: <b>{{dataCheck2.length}}</b>
+                </p>
+
+                <div class="table-responsive" style="max-height:500px;">
+                    <table id="table-dataCheck2" class="table table-bordered table-hover">
+                        <thead class="table-warning">
+                            <tr>
+                                <th>Dòng</th>
+                                <th>SOCT</th>
+                                <th>MADMNO</th>
+                                <th>TENDM</th>
+                                <th>DONVI_CTU</th>
+                                <th>Status</th>
+                                <th>NGAYCT</th>
+
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each dataCheck2}}
+                            <tr style="background-color: #fff3cd; font-weight: bold;">
+                                <td>{{this.DONG}}</td>
+                                <td>{{this.SOCT}}</td>
+                                <td>{{this.MADMNO}}</td>
+                                <td>{{this.TENDM}}</td>
+                                <td>{{this.DONVI_CTU}}</td>
+                                <td>{{this.Status}}</td>
+                                <td>{{this.NGAYCT}}</td>
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                </div>
+
+                <button class="btn btn-warning"
+                        onclick="exportTableToExcel('table-dataCheck2', 'Kiểm_tra_Đơn_vị_CTU')">
+                    Xuất Excel
+                </button>
+            </div>
+        </div>
+        {{/if}}
+
+      
+
+        <!-- ERROR -->
+        {{#if error}}
+        <div class="alert alert-danger">
+            <strong>Lỗi:</strong> {{error}}
+        </div>
+        {{/if}}
+
+        <!-- GUIDE -->
+        <div class="card shadow">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3">💡 Hướng dẫn sử dụng</h5>
+                <ol class="mb-0">
+                    <li>Chọn file Excel (.xlsx hoặc .xls)</li>
+                    <li>Nhấn "Tải lên và xem dữ liệu"</li>
+                    <li>Dữ liệu sẽ hiển thị dạng bảng</li>
+                    <li>Hỗ trợ tất cả định dạng Excel phổ biến</li>
+                </ol>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// Handle file input change
+document.getElementById('excelFile').addEventListener('change', function(e) {
+    const fileName = this.files[0]?.name || '';
+    const fileIcon = document.getElementById('fileIcon');
+    const fileText = document.getElementById('fileText');
+    const fileSubtext = document.getElementById('fileSubtext');
+    
+    if (fileName) {
+        fileIcon.textContent = '✅';
+        fileText.textContent = fileName;
+        fileSubtext.textContent = 'Sẵn sàng tải lên';
+        fileSubtext.classList.remove('text-gray-500');
+        fileSubtext.classList.add('text-green-600', 'font-semibold');
+    } else {
+        fileIcon.textContent = '📁';
+        fileText.textContent = 'Chọn file Excel';
+        fileSubtext.textContent = '.xlsx hoặc .xls';
+        fileSubtext.classList.remove('text-green-600', 'font-semibold');
+        fileSubtext.classList.add('text-gray-500');
+    }
+});
+function exportTableToExcel(tableId, filename) {
+    const table = document.getElementById(tableId);
+    if (!table) {
+        alert('Không tìm thấy bảng dữ liệu!');
+        return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(table, {
+        raw: true // QUAN TRỌNG
+    });
+
+    // ====== FORCE TEXT CHO CỘT CCCD & NGAYCT ======
+    const range = XLSX.utils.decode_range(ws['!ref']);
+
+    // Tìm index các cột cần format
+    let cccdColIndex = -1;
+    let ngayKyColIndex = -1;
+
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+        const headerCell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
+        if (headerCell?.v === 'CCCD' || headerCell?.v === 'MaSoThue') {
+            cccdColIndex = C;
+        }
+        if (headerCell?.v === 'NGAYCT') {
+            ngayKyColIndex = C;
+        }
+    }
+
+    // Ép TEXT cho cột CCCD
+    if (cccdColIndex !== -1) {
+        for (let R = 1; R <= range.e.r; ++R) {
+            const cellAddr = XLSX.utils.encode_cell({ r: R, c: cccdColIndex });
+            if (!ws[cellAddr]) continue;
+
+            ws[cellAddr].t = 's';
+            ws[cellAddr].z = '@';
+            ws[cellAddr].v = String(ws[cellAddr].v);
+        }
+    }
+
+    // Ép TEXT cho cột NGAYCT
+    if (ngayKyColIndex !== -1) {
+        for (let R = 1; R <= range.e.r; ++R) {
+            const cellAddr = XLSX.utils.encode_cell({ r: R, c: ngayKyColIndex });
+            if (!ws[cellAddr]) continue;
+
+            ws[cellAddr].t = 's';
+            ws[cellAddr].z = '@';
+            ws[cellAddr].v = String(ws[cellAddr].v);
+        }
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+
+    const finalFileName =
+        (filename || 'export').replace('.xlsx', '') + '_export.xlsx';
+
+    XLSX.writeFile(wb, finalFileName);
+}
+
+// ========== AUTH FUNCTIONS ==========
+// Load user info from localStorage
+const user = JSON.parse(localStorage.getItem('user') || '{}');
+if (user.name) {
+  document.getElementById('user-name').textContent = user.name;
+  document.getElementById('user-code').textContent = user.code;
+}
+
+// Logout function
+function logout() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('user');
+  window.location.href = '/auth/logout';
+}
+
+
+    
+</script>

@@ -141,10 +141,16 @@
 
           <ul class="menu-inner py-1">
             <!-- Dashboard -->
-            <li class="menu-item active">
-              <a href="/" class="menu-link">
+            <li class="menu-item" id="menu-tao-phieu">
+              <a href="/tao-phieu-nhap" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-home-circle"></i>
-                <div data-i18n="Analytics">Trang chủ</div>
+                <div data-i18n="Analytics">Tạo phiếu nhập kho</div>
+              </a>
+            </li>
+            <li class="menu-item" id="menu-don-vi">
+              <a href="/don-vi-tinh" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-home-circle"></i>
+                <div data-i18n="Analytics">Kiểm tra đơn vị tính</div>
               </a>
             </li>
 
@@ -590,26 +596,26 @@
                     document.write(new Date().getFullYear());
                   </script>
                   , made with ❤️ by
-                  <a href="https://themeselection.com" target="_blank" class="footer-link fw-bolder">ThemeSelection</a>
+                  <a href="https://wavebear.vn" target="_blank" class="footer-link fw-bolder">Wavebear</a>
                 </div>
-                <div>
-                  <a href="https://themeselection.com/license/" class="footer-link me-4" target="_blank">License</a>
-                  <a href="https://themeselection.com/" target="_blank" class="footer-link me-4">More Themes</a>
+                {{!-- <div>
+                  <a href="https://wavebear.com/license/" class="footer-link me-4" target="_blank">License</a>
+                  <a href="https://wavebear.com/" target="_blank" class="footer-link me-4">More Themes</a>
 
                   <a
-                    href="https://themeselection.com/demo/sneat-bootstrap-html-admin-template/documentation/"
+                    href="https://wavebear.com/demo/sneat-bootstrap-html-admin-template/documentation/"
                     target="_blank"
                     class="footer-link me-4"
                     >Documentation</a
                   >
 
                   <a
-                    href="https://github.com/themeselection/sneat-html-admin-template-free/issues"
+                    href="https://github.com/wavebear/sneat-html-admin-template-free/issues"
                     target="_blank"
                     class="footer-link me-4"
                     >Support</a
                   >
-                </div>
+                </div> --}}
               </div>
             </footer>
             <!-- / Footer -->
@@ -649,5 +655,24 @@
 
     <!-- Place this tag in your head or just before your close body tag. -->
     <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+    <script>
+      // Set active menu based on current URL
+      document.addEventListener('DOMContentLoaded', function() {
+        const currentUrl = window.location.pathname;
+
+        // Remove active class from all menu items
+        document.querySelectorAll('.menu-item').forEach(item => {
+          item.classList.remove('active');
+        });
+
+        // Add active class to current page's menu item
+        if (currentUrl.includes('/tao-phieu-nhap')) {
+          document.getElementById('menu-tao-phieu').classList.add('active');
+        } else if (currentUrl.includes('/don-vi-tinh')) {
+          document.getElementById('menu-don-vi').classList.add('active');
+        }
+      });
+    </script>
   </body>
 </html>

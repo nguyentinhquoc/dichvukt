@@ -10,7 +10,7 @@
 
                 <h5 class="fw-bold mb-3 text-primary">📊 Tải lên File Excel</h5>
 
-                <form action="/upload-excel" method="POST" enctype="multipart/form-data">
+                <form action="/tao-phieu-nhap/upload-excel" method="POST" enctype="multipart/form-data">
 
                     <!-- File input -->
                     <div class="mb-3">
@@ -118,16 +118,18 @@
         {{#if nhapLieu}}
         <div class="card shadow mb-4 border-start border-4 border-success">
             <div class="card-body">
-
                 <h5 class="fw-bold mb-2">📋 Dữ liệu nhập liệu</h5>
                 <p class="text-muted">
                     File: <b>{{fileName}}</b> |
                     Số dòng: <b>{{nhapLieu.length}}</b>
                 </p>
-
                 <div class="table-responsive" style="max-height:500px;">
                     <table id="table-nhapLieu" class="table table-bordered table-hover">
+
                         <thead class="table-success">
+                            <tr>
+                                <th colspan="19">Chi tiết</th>
+                            </tr>
                             <tr>
                                 {{#each nhapLieu.[0]}}
                                 <th>{{@key}}</th>
