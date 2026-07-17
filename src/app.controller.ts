@@ -58,9 +58,11 @@ export class AppController {
             error: 'Không có file nào được tải lên',
           };
         }
+
          const workbook = XLSX.read(file.buffer, { type: 'buffer' });
         // Lấy sheet đầu tiên
-        const sheetName = workbook.SheetNames[0];
+        const sheetName = workbook.SheetNames.find(name => name === 'Smart_KTSC_OK') || workbook.SheetNames[0];
+
         const worksheet = workbook.Sheets[sheetName];
         // Chuyển đổi sang JSON với các cột rỗng vẫn có giá trị
         const rawData = XLSX.utils.sheet_to_json(worksheet, {
@@ -122,13 +124,33 @@ export class AppController {
           'Hạn sử dụng': '',
           'Lượng hàng (*)': row.LUONG
         };
+
+
       });
+      const khacHang = jsonDataGoc.map((row: any) => ({
+        "Mã KH/NCC":row.MAKH,
+        "Tên đơn vị (*)	":row.TENKH,
+        "Tên người mua":"",	
+        "Loại (*)":"Nhà cung cấp",
+        "Địa chỉ":row.DIACHI_NGD,
+        "Số điện thoại":"",
+          "Ngày sinh":"",
+            "Số CCCD":"",
+              "Mã số thuế":row.MS_DN,
+                "Email":"",
+                  "Số tài khoản":"",
+                    "Tên ngân hàng":"",
+                      "Giới tính":"",
+                        "Mô tả":"",
+
+      }));
         console.log("🚀 ~ AppController ~ uploadExcel ~ jsonDataGoc:", jsonDataGoc)
         return {
           jsonDataGoc,
           danhMucSanPham,
           tyGiaThayDoi,
-          nhapLieu
+          nhapLieu,
+          khacHang
         };
     };
 
