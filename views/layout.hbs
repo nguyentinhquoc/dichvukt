@@ -153,6 +153,24 @@
                 <div data-i18n="Analytics">Kiểm tra đơn vị tính</div>
               </a>
             </li>
+            <li class="menu-item" id="menu-hop-dong">
+              <a href="/hop-dong-mua-ban" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-receipt"></i>
+                <div data-i18n="Contracts">Hợp đồng mua bán</div>
+              </a>
+            </li>
+            <li class="menu-item" id="menu-don-dat-hang">
+              <a href="/don-dat-hang-dich" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-cart"></i>
+                <div data-i18n="Orders">Đơn đặt hàng dịch</div>
+              </a>
+            </li>
+            <li class="menu-item" id="menu-bien-ban-giao-nhan">
+              <a href="/bien-ban-giao-nhan-hang-hoa" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-transfer"></i>
+                <div data-i18n="Handover">Biên bản giao nhận hàng hóa</div>
+              </a>
+            </li>
 
             <!-- Layouts -->
             {{!-- <li class="menu-item">
@@ -671,6 +689,12 @@
           document.getElementById('menu-tao-phieu').classList.add('active');
         } else if (currentUrl.includes('/don-vi-tinh')) {
           document.getElementById('menu-don-vi').classList.add('active');
+        } else if (currentUrl.includes('/hop-dong-mua-ban')) {
+          document.getElementById('menu-hop-dong').classList.add('active');
+        } else if (currentUrl.includes('/don-dat-hang-dich')) {
+          document.getElementById('menu-don-dat-hang').classList.add('active');
+        } else if (currentUrl.includes('/bien-ban-giao-nhan-hang-hoa')) {
+          document.getElementById('menu-bien-ban-giao-nhan').classList.add('active');
         }
       });
     </script>

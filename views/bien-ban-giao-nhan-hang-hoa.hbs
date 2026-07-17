@@ -1,0 +1,42 @@
+<div class="container py-5">
+    <div class="mx-auto" style="max-width:800px;">
+
+        <!-- Header -->
+        <h4 class="fw-bold mb-4">Tạo biên bản giao nhận hàng hóa</h4>
+
+        <!-- Upload -->
+        <div class="card shadow mb-4 border-start border-4 border-primary">
+            <div class="card-body">
+
+                <h5 class="fw-bold mb-3 text-primary">📊 Tải lên File Excel</h5>
+                <p class="text-muted">
+                    Mỗi số hóa đơn (SO_HD) khác nhau trong file sẽ tạo ra 1 file biên bản giao nhận Word,
+                    tất cả sẽ được đóng gói vào 1 file ZIP để tải về.
+                </p>
+
+                <form action="/bien-ban-giao-nhan-hang-hoa/upload-excel" method="POST" enctype="multipart/form-data">
+
+                    <!-- File input -->
+                    <div class="mb-3">
+                        <label for="excelFile" class="form-label fw-semibold">Chọn file Excel</label>
+                        <input class="form-control" type="file" name="file" id="excelFile" accept=".xlsx,.xls" required>
+                        <div class="form-text" id="fileSubtext">.xlsx hoặc .xls</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        Tải lên và tạo biên bản
+                    </button>
+                </form>
+
+            </div>
+        </div>
+
+        <!-- ERROR -->
+        {{#if error}}
+        <div class="alert alert-danger">
+            {{error}}
+        </div>
+        {{/if}}
+
+    </div>
+</div>

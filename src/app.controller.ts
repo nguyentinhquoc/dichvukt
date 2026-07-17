@@ -12,6 +12,11 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import * as XLSX from 'xlsx';
+import * as fs from 'fs';
+import { join } from 'path';
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
+import archiver from 'archiver';
 import { AppService } from './app.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 interface UploadedFileType {
@@ -325,6 +330,449 @@ export class AppController {
  	// 'Hạn sử dụng': '',
  	// 'Lượng hàng (*)': row.LUONG // Bằng cột M. Số lượng nhập tại sheet này 
 
+
+  @Get('hop-dong-mua-ban')
+  @Render('hopdongmuaban')
+  hopDongMuaBan() {
+    return {
+      title: 'Tạo hợp đồng mua bán',
+      message: 'Upload file Excel của bạn để tạo hợp đồng mua bán',
+    };
+  }
+
+  @Post('hop-dong-mua-ban/upload-excel')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadHopDongMuaBan(@UploadedFile() file: UploadedFileType, @Res() res: any) {
+    if (!file) {
+      return res.render('hopdongmuaban', {
+        title: 'Tạo hợp đồng mua bán',
+        message: 'Upload file Excel của bạn để tạo hợp đồng mua bán',
+        error: 'Không có file nào được tải lên',
+      });
+    }
+
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames.find(name => name === 'Smart_KTSC_OK') || workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+
+    const rawData = XLSX.utils.sheet_to_json(worksheet, {
+      defval: '',
+      blankrows: true,
+    });
+    const jsonDataGoc = rawData.map((row: any) => {
+      const cleanRow: any = {};
+      Object.keys(row).forEach(key => {
+        if (!key.startsWith('__EMPTY')) {
+          cleanRow[key] = row[key];
+        }
+      });
+      return cleanRow;
+    });
+
+    const colAK = XLSX.utils.decode_col('AK');
+    const colAL = XLSX.utils.decode_col('AL');
+    const colAN = XLSX.utils.decode_col('AN');
+
+    const getCellByCol = (dataRowIndex: number, colIndex: number) => {
+      const addr = XLSX.utils.encode_cell({ r: dataRowIndex + 1, c: colIndex });
+      return worksheet[addr]?.v ?? '';
+    };
+
+    const parseExcelDate = (val: any): { day: number; month: number; year: number } | null => {
+      if (!val) return null;
+      let d: Date;
+      if (val instanceof Date) {
+        d = val;
+      } else if (typeof val === 'number') {
+        d = new Date((val - 25569) * 86400000);
+      } else {
+        d = new Date(val);
+        if (isNaN(d.getTime())) return null;
+      }
+      return { day: d.getUTCDate(), month: d.getUTCMonth() + 1, year: d.getUTCFullYear() };
+    };
+
+    const seenSoHD = new Set<string>();
+    const contracts: { soHD: string; data: any }[] = [];
+
+    jsonDataGoc.forEach((row: any, index: number) => {
+      const soHD = row.SO_HD?.toString().trim();
+      if (!soHD || seenSoHD.has(soHD)) return;
+      seenSoHD.add(soHD);
+
+      const date = parseExcelDate(row.NGAY_KY) ?? { day: '', month: '', year: '' };
+
+      contracts.push({
+        soHD,
+        data: {
+          ngay: date.day,
+          thang: date.month,
+          nam: date.year,
+          ten_cty: getCellByCol(index, colAL),
+          mst: getCellByCol(index, colAK),
+          dia_chi: getCellByCol(index, colAN),
+        },
+      });
+    });
+
+    if (contracts.length === 0) {
+      return res.render('hopdongmuaban', {
+        title: 'Tạo hợp đồng mua bán',
+        message: 'Upload file Excel của bạn để tạo hợp đồng mua bán',
+        error: 'Không tìm thấy số hợp đồng (SO_HD) hợp lệ trong file',
+      });
+    }
+
+    const templatePath = join(__dirname, '..', 'templates', 'hop-dong-mua-ban-template.docx');
+    const templateContent = fs.readFileSync(templatePath, 'binary');
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    const chunks: Buffer[] = [];
+    archive.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    for (const contract of contracts) {
+      const zip = new PizZip(templateContent);
+      const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+      doc.render(contract.data);
+      const buffer = doc.getZip().generate({ type: 'nodebuffer' });
+      archive.append(buffer, { name: `HopDong_${contract.soHD}.docx` });
+    }
+
+    await archive.finalize();
+    const zipBuffer = Buffer.concat(chunks);
+
+    const now = new Date();
+    const dateHienTai = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${now.getFullYear()}`;
+
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="HopDongMuaBan_${dateHienTai}.zip"`,
+    });
+    res.send(zipBuffer);
+  }
+
+  @Get('don-dat-hang-dich')
+  @Render('don-dat-hang-dich')
+  donDatHangDich() {
+    return {
+      title: 'Tạo đơn đặt hàng',
+      message: 'Upload file Excel của bạn để tạo đơn đặt hàng',
+    };
+  }
+
+  @Post('don-dat-hang-dich/upload-excel')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDonDatHangDich(@UploadedFile() file: UploadedFileType, @Res() res: any) {
+    if (!file) {
+      return res.render('don-dat-hang-dich', {
+        title: 'Tạo đơn đặt hàng',
+        message: 'Upload file Excel của bạn để tạo đơn đặt hàng',
+        error: 'Không có file nào được tải lên',
+      });
+    }
+
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames.find(name => name === 'Smart_KTSC_OK') || workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+
+    const rawData = XLSX.utils.sheet_to_json(worksheet, {
+      defval: '',
+      blankrows: true,
+    });
+    const jsonDataGoc = rawData.map((row: any) => {
+      const cleanRow: any = {};
+      Object.keys(row).forEach(key => {
+        if (!key.startsWith('__EMPTY')) {
+          cleanRow[key] = row[key];
+        }
+      });
+      return cleanRow;
+    });
+
+    const colF = XLSX.utils.decode_col('F');
+    const colR = XLSX.utils.decode_col('R');
+    const colU = XLSX.utils.decode_col('U');
+    const colV = XLSX.utils.decode_col('V');
+    const colZ = XLSX.utils.decode_col('Z');
+    const colAA = XLSX.utils.decode_col('AA');
+    const colAL = XLSX.utils.decode_col('AL');
+    const colAN = XLSX.utils.decode_col('AN');
+
+    const getCellByCol = (sheet: XLSX.WorkSheet, dataRowIndex: number, colIndex: number) => {
+      const addr = XLSX.utils.encode_cell({ r: dataRowIndex + 1, c: colIndex });
+      return sheet[addr]?.v ?? '';
+    };
+
+    const parseExcelDate = (val: any): { day: number; month: number; year: number } | null => {
+      if (!val) return null;
+      let d: Date;
+      if (val instanceof Date) {
+        d = val;
+      } else if (typeof val === 'number') {
+        d = new Date((val - 25569) * 86400000);
+      } else {
+        d = new Date(val);
+        if (isNaN(d.getTime())) return null;
+      }
+      return { day: d.getUTCDate(), month: d.getUTCMonth() + 1, year: d.getUTCFullYear() };
+    };
+
+    const formatSoTien = (val: number) => Number(val || 0).toLocaleString('en-US');
+
+    // "Kính gửi" lấy ở cột C của sheet HoaDon_TongQuat, dữ liệu bắt đầu từ dòng 5
+    // (dòng 1: tiêu đề "HÓA ĐƠN BÁN RA", dòng 2: MST, dòng 3: Tên DN, dòng 4: header cột)
+    // Giá trị cột C giống nhau ở mọi dòng dữ liệu nên chỉ cần lấy dòng đầu tiên (dòng 5)
+    const hoaDonTongQuatSheetName = workbook.SheetNames.find(name => name === 'HoaDon_TongQuat');
+    let kinhGui = '';
+    if (hoaDonTongQuatSheetName) {
+      const hoaDonTongQuatSheet = workbook.Sheets[hoaDonTongQuatSheetName];
+      kinhGui = hoaDonTongQuatSheet['C5']?.v ?? '';
+    }
+
+    const seenSoHD = new Set<string>();
+    const orders: { soHD: string; data: any }[] = [];
+
+    jsonDataGoc.forEach((row: any, index: number) => {
+      const soHD = row.SO_HD?.toString().trim();
+      if (!soHD || seenSoHD.has(soHD)) return;
+      seenSoHD.add(soHD);
+
+      const date = parseExcelDate(getCellByCol(worksheet, index, colF)) ?? { day: '', month: '', year: '' };
+      const thoiGianGiaoHang = date.day !== ''
+        ? `${String(date.day).padStart(2, '0')}/${String(date.month).padStart(2, '0')}/${date.year}`
+        : '';
+
+      const chiTietRaw = jsonDataGoc
+        .map((r: any, i: number) => ({ r, i }))
+        .filter(({ r }) => r.SO_HD?.toString().trim() === soHD)
+        .map(({ i }, stt) => ({
+          stt: stt + 1,
+          ten_sp: getCellByCol(worksheet, i, colR),
+          dvt: getCellByCol(worksheet, i, colU),
+          sl: Number(getCellByCol(worksheet, i, colV)) || 0,
+          don_gia: Math.round(getCellByCol(worksheet, i, colZ)) || 0,
+          thanh_tien: Math.round(getCellByCol(worksheet, i, colAA)) || 0,
+        }));
+
+      const tongCong = chiTietRaw.reduce((sum, item) => sum + item.thanh_tien, 0);
+
+      const chiTiet = chiTietRaw.map(item => ({
+        ...item,
+        sl: formatSoTien(item.sl),
+        don_gia: formatSoTien(item.don_gia),
+        thanh_tien: formatSoTien(item.thanh_tien),
+      }));
+
+      orders.push({
+        soHD,
+        data: {
+          so_hd: soHD,
+          kinh_gui: kinhGui,
+          ten_cty: getCellByCol(worksheet, index, colAL),
+          thoi_gian_giao_hang: thoiGianGiaoHang,
+          dia_diem_giao_hang: getCellByCol(worksheet, index, colAN),
+          ngay: date.day,
+          thang: date.month,
+          nam: date.year,
+          chi_tiet: chiTiet,
+          tong_cong: formatSoTien(tongCong),
+        },
+      });
+    });
+
+    if (orders.length === 0) {
+      return res.render('don-dat-hang-dich', {
+        title: 'Tạo đơn đặt hàng',
+        message: 'Upload file Excel của bạn để tạo đơn đặt hàng',
+        error: 'Không tìm thấy số hóa đơn (SO_HD) hợp lệ trong file',
+      });
+    }
+
+    const templatePath = join(__dirname, '..', 'templates', 'don-dat-hang-dich-template.docx');
+    const templateContent = fs.readFileSync(templatePath, 'binary');
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    const chunks: Buffer[] = [];
+    archive.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    for (const order of orders) {
+      const zip = new PizZip(templateContent);
+      const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+      doc.render(order.data);
+      const buffer = doc.getZip().generate({ type: 'nodebuffer' });
+      archive.append(buffer, { name: `DonDatHang_${order.soHD}.docx` });
+    }
+
+    await archive.finalize();
+    const zipBuffer = Buffer.concat(chunks);
+
+    const now = new Date();
+    const dateHienTai = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${now.getFullYear()}`;
+
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="DonDatHangDich_${dateHienTai}.zip"`,
+    });
+    res.send(zipBuffer);
+  }
+
+  @Get('bien-ban-giao-nhan-hang-hoa')
+  @Render('bien-ban-giao-nhan-hang-hoa')
+  bienBanGiaoNhanHangHoa() {
+    return {
+      title: 'Tạo biên bản giao nhận hàng hóa',
+      message: 'Upload file Excel của bạn để tạo biên bản giao nhận hàng hóa',
+    };
+  }
+
+  @Post('bien-ban-giao-nhan-hang-hoa/upload-excel')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadBienBanGiaoNhanHangHoa(@UploadedFile() file: UploadedFileType, @Res() res: any) {
+    if (!file) {
+      return res.render('bien-ban-giao-nhan-hang-hoa', {
+        title: 'Tạo biên bản giao nhận hàng hóa',
+        message: 'Upload file Excel của bạn để tạo biên bản giao nhận hàng hóa',
+        error: 'Không có file nào được tải lên',
+      });
+    }
+
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames.find(name => name === 'Smart_KTSC_OK') || workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+
+    const rawData = XLSX.utils.sheet_to_json(worksheet, {
+      defval: '',
+      blankrows: true,
+    });
+    const jsonDataGoc = rawData.map((row: any) => {
+      const cleanRow: any = {};
+      Object.keys(row).forEach(key => {
+        if (!key.startsWith('__EMPTY')) {
+          cleanRow[key] = row[key];
+        }
+      });
+      return cleanRow;
+    });
+
+    const colD = XLSX.utils.decode_col('D');
+    const colE = XLSX.utils.decode_col('E');
+    const colH = XLSX.utils.decode_col('H');
+    const colR = XLSX.utils.decode_col('R');
+    const colU = XLSX.utils.decode_col('U');
+    const colV = XLSX.utils.decode_col('V');
+    const colAL = XLSX.utils.decode_col('AL');
+    const colAN = XLSX.utils.decode_col('AN');
+
+    const getCellByCol = (sheet: XLSX.WorkSheet, dataRowIndex: number, colIndex: number) => {
+      const addr = XLSX.utils.encode_cell({ r: dataRowIndex + 1, c: colIndex });
+      return sheet[addr]?.v ?? '';
+    };
+
+    const parseExcelDate = (val: any): { day: number; month: number; year: number } | null => {
+      if (!val) return null;
+      let d: Date;
+      if (val instanceof Date) {
+        d = val;
+      } else if (typeof val === 'number') {
+        d = new Date((val - 25569) * 86400000);
+      } else {
+        d = new Date(val);
+        if (isNaN(d.getTime())) return null;
+      }
+      return { day: d.getUTCDate(), month: d.getUTCMonth() + 1, year: d.getUTCFullYear() };
+    };
+
+    // "Công ty" và "Địa chỉ" bên giao hàng lấy ở cột C, D của sheet HoaDon_TongQuat, dữ liệu bắt đầu từ dòng 5
+    // (dòng 1: tiêu đề "HÓA ĐƠN BÁN RA", dòng 2: MST, dòng 3: Tên DN, dòng 4: header cột)
+    // Giá trị cột C, D giống nhau ở mọi dòng dữ liệu nên chỉ cần lấy dòng đầu tiên (dòng 5)
+    const hoaDonTongQuatSheetName = workbook.SheetNames.find(name => name === 'HoaDon_TongQuat');
+    let tenCtyB = '';
+    let diaChiB = '';
+    if (hoaDonTongQuatSheetName) {
+      const hoaDonTongQuatSheet = workbook.Sheets[hoaDonTongQuatSheetName];
+      tenCtyB = hoaDonTongQuatSheet['C5']?.v ?? '';
+      diaChiB = hoaDonTongQuatSheet['D5']?.v ?? '';
+    }
+
+    const seenSoHD = new Set<string>();
+    const bienBans: { soHD: string; data: any }[] = [];
+
+    jsonDataGoc.forEach((row: any, index: number) => {
+      const soHD = row.SO_HD?.toString().trim();
+      if (!soHD || seenSoHD.has(soHD)) return;
+      seenSoHD.add(soHD);
+
+      const dateE = parseExcelDate(getCellByCol(worksheet, index, colE)) ?? { day: '', month: '', year: '' };
+      const ngayDatHang = dateE.day !== ''
+        ? `${String(dateE.day).padStart(2, '0')}/${String(dateE.month).padStart(2, '0')}/${dateE.year}`
+        : '';
+      const dateH = parseExcelDate(getCellByCol(worksheet, index, colH)) ?? { day: '', month: '', year: '' };
+
+      const chiTiet = jsonDataGoc
+        .map((r: any, i: number) => ({ r, i }))
+        .filter(({ r }) => r.SO_HD?.toString().trim() === soHD)
+        .map(({ i }, stt) => ({
+          stt: stt + 1,
+          ten_sp: getCellByCol(worksheet, i, colR),
+          dvt: getCellByCol(worksheet, i, colU),
+          sl: getCellByCol(worksheet, i, colV),
+        }));
+
+      bienBans.push({
+        soHD,
+        data: {
+          ten_cty_b: tenCtyB,
+          dia_chi_b: diaChiB,
+          ten_cty_a: getCellByCol(worksheet, index, colAL),
+          dia_chi_a: getCellByCol(worksheet, index, colAN),
+          so_bb: getCellByCol(worksheet, index, colD),
+          ngay_e: dateE.day,
+          thang_e: dateE.month,
+          nam_e: dateE.year,
+          ngay_dat_hang: ngayDatHang,
+          ngay_h: dateH.day,
+          thang_h: dateH.month,
+          nam_h: dateH.year,
+          chi_tiet: chiTiet,
+        },
+      });
+    });
+
+    if (bienBans.length === 0) {
+      return res.render('bien-ban-giao-nhan-hang-hoa', {
+        title: 'Tạo biên bản giao nhận hàng hóa',
+        message: 'Upload file Excel của bạn để tạo biên bản giao nhận hàng hóa',
+        error: 'Không tìm thấy số hóa đơn (SO_HD) hợp lệ trong file',
+      });
+    }
+
+    const templatePath = join(__dirname, '..', 'templates', 'bien-ban-xac-nha-hang-hoa-template.docx');
+    const templateContent = fs.readFileSync(templatePath, 'binary');
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    const chunks: Buffer[] = [];
+    archive.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    for (const bienBan of bienBans) {
+      const zip = new PizZip(templateContent);
+      const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+      doc.render(bienBan.data);
+      const buffer = doc.getZip().generate({ type: 'nodebuffer' });
+      archive.append(buffer, { name: `BienBanGiaoNhan_${bienBan.soHD}.docx` });
+    }
+
+    await archive.finalize();
+    const zipBuffer = Buffer.concat(chunks);
+
+    const now = new Date();
+    const dateHienTai = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${now.getFullYear()}`;
+
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="BienBanGiaoNhanHangHoa_${dateHienTai}.zip"`,
+    });
+    res.send(zipBuffer);
+  }
 
   @Get('about')
   @Render('about')
