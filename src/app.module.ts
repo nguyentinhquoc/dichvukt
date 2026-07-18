@@ -4,7 +4,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { CompanyModule } from './company/company.module';
 import { User } from './entities/user.entity';
+import { Company } from './entities/company.entity';
+import { CompanyInfo } from './entities/company-info.entity';
 
 @Module({
   imports: [
@@ -18,10 +21,11 @@ import { User } from './entities/user.entity';
       username: process.env.DB_USERNAME || 'root',
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_DATABASE || 'ke-toan',
-      entities: [User],
+      entities: [User, Company, CompanyInfo],
       synchronize: true, // Tự động tạo bảng (chỉ dùng dev)
     }),
     AuthModule,
+    CompanyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

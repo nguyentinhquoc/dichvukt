@@ -14,7 +14,39 @@
                     tất cả sẽ được đóng gói vào 1 file ZIP để tải về.
                 </p>
 
-                <form action="/hop-dong-mua-ban/upload-excel" method="POST" enctype="multipart/form-data">
+                <form action="/hop-dong-mua-ban/upload-excel" method="POST" enctype="multipart/form-data" id="hopDongForm">
+
+                    <!-- Chọn công ty bên bán -->
+                    <div class="mb-3">
+                        <label for="companyId" class="form-label fw-semibold">Công ty bên bán</label>
+                        <select class="form-select" name="companyId" id="companyId">
+                            <option value="">-- Không điền / để trống --</option>
+                            {{#each companies}}
+                            <option value="{{id}}">{{title}}</option>
+                            {{/each}}
+                        </select>
+                        <div class="form-text">
+                            Chọn công ty để tự động điền thông tin "Bên bán" trong hợp đồng.
+                            Quản lý danh sách công ty tại <a href="/cong-ty">trang Quản lý công ty</a>.
+                        </div>
+                    </div>
+
+                    <!-- Thông tin Bên bán: đổ ra từ công ty đã chọn, có thể sửa chỉ để xuất file, không lưu lại vào DB -->
+                    <div class="mb-3" id="benBanBlock" style="display:none;">
+                        <label class="form-label fw-semibold">Thông tin "Bên bán" (chỉnh sửa chỉ áp dụng cho file Word này, không ảnh hưởng dữ liệu công ty)</label>
+                        <table class="table table-bordered align-middle table-sm">
+                            <thead>
+                                <tr>
+                                    <th style="width:30%">Nhãn</th>
+                                    <th>Giá trị</th>
+                                    <th style="width:60px"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="benBanTableBody"></tbody>
+                        </table>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="benBanAddRowBtn">+ Thêm dòng</button>
+                    </div>
+                    <input type="hidden" name="thongTinBanJson" id="thongTinBanJson">
 
                     <!-- File input -->
                     <div class="mb-3">
@@ -22,6 +54,27 @@
                         <input class="form-control" type="file" name="file" id="excelFile" accept=".xlsx,.xls" required>
                         <div class="form-text" id="fileSubtext">.xlsx hoặc .xls</div>
                     </div>
+
+                    <!-- Thông tin Bên mua: đổ ra từ file Excel vừa chọn, có thể sửa chỉ để xuất file này -->
+                    <div class="mb-3" id="benMuaBlock" style="display:none;">
+                        <label class="form-label fw-semibold">Thông tin "Bên mua" (lấy từ file Excel, có thể sửa trước khi tạo hợp đồng)</label>
+                        <div style="overflow-x:auto;">
+                            <table class="table table-bordered align-middle table-sm">
+                                <thead>
+                                    <tr>
+                                        <th style="width:100px">Số HĐ</th>
+                                        <th>Tên công ty</th>
+                                        <th style="width:14%">MST</th>
+                                        <th>Địa chỉ</th>
+                                        <th style="width:16%">Đại diện</th>
+                                        <th style="width:14%">Chức vụ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="benMuaTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <input type="hidden" name="benMuaJson" id="benMuaJson">
 
                     <button type="submit" class="btn btn-primary w-100">
                         Tải lên và tạo hợp đồng
@@ -40,3 +93,115 @@
 
     </div>
 </div>
+
+<script>
+    (function () {
+        var companySelect = document.getElementById('companyId');
+        var benBanBlock = document.getElementById('benBanBlock');
+        var tbody = document.getElementById('benBanTableBody');
+        var addRowBtn = document.getElementById('benBanAddRowBtn');
+        var form = document.getElementById('hopDongForm');
+        var hiddenJson = document.getElementById('thongTinBanJson');
+
+        function addRow(label, value) {
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td><input type="text" class="form-control form-control-sm ben-ban-label" value="' +
+                (label || '').replace(/"/g, '&quot;') + '"></td>' +
+                '<td><input type="text" class="form-control form-control-sm ben-ban-value" value="' +
+                (value || '').replace(/"/g, '&quot;') + '"></td>' +
+                '<td><button type="button" class="btn btn-sm btn-outline-danger ben-ban-remove-row">Xóa</button></td>';
+            tr.querySelector('.ben-ban-remove-row').addEventListener('click', function () {
+                tr.remove();
+            });
+            tbody.appendChild(tr);
+        }
+
+        function renderRows(rows) {
+            tbody.innerHTML = '';
+            (rows || []).forEach(function (row) {
+                addRow(row.label, row.value);
+            });
+            benBanBlock.style.display = 'block';
+        }
+
+        addRowBtn.addEventListener('click', function () {
+            addRow('', '');
+            benBanBlock.style.display = 'block';
+        });
+
+        companySelect.addEventListener('change', function () {
+            var id = companySelect.value;
+            if (!id) {
+                tbody.innerHTML = '';
+                benBanBlock.style.display = 'none';
+                return;
+            }
+            fetch('/cong-ty/' + id + '/thong-tin')
+                .then(function (res) { return res.json(); })
+                .then(function (data) { renderRows(data.thong_tin_ban); })
+                .catch(function () { /* ignore, người dùng có thể tự thêm dòng bằng tay */ });
+        });
+
+        // ---- Bên mua: đổ ra từ file Excel vừa chọn ----
+        var excelFileInput = document.getElementById('excelFile');
+        var benMuaBlock = document.getElementById('benMuaBlock');
+        var benMuaTbody = document.getElementById('benMuaTableBody');
+        var benMuaHiddenJson = document.getElementById('benMuaJson');
+
+        function addBenMuaRow(contract) {
+            var tr = document.createElement('tr');
+            tr.dataset.soHd = contract.soHD;
+            tr.innerHTML =
+                '<td>' + contract.soHD + '</td>' +
+                '<td><input type="text" class="form-control form-control-sm ben-mua-ten-cty" value="' +
+                (contract.ten_cty || '').toString().replace(/"/g, '&quot;') + '"></td>' +
+                '<td><input type="text" class="form-control form-control-sm ben-mua-mst" value="' +
+                (contract.mst || '').toString().replace(/"/g, '&quot;') + '"></td>' +
+                '<td><input type="text" class="form-control form-control-sm ben-mua-dia-chi" value="' +
+                (contract.dia_chi || '').toString().replace(/"/g, '&quot;') + '"></td>' +
+                '<td><input type="text" class="form-control form-control-sm ben-mua-dai-dien" value=""></td>' +
+                '<td><input type="text" class="form-control form-control-sm ben-mua-chuc-vu" value="Giám đốc"></td>';
+            benMuaTbody.appendChild(tr);
+        }
+
+        excelFileInput.addEventListener('change', function () {
+            benMuaTbody.innerHTML = '';
+            benMuaBlock.style.display = 'none';
+            var file = excelFileInput.files[0];
+            if (!file) return;
+            var formData = new FormData();
+            formData.append('file', file);
+            fetch('/hop-dong-mua-ban/preview-excel', { method: 'POST', body: formData })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    (data.contracts || []).forEach(function (contract) { addBenMuaRow(contract); });
+                    if ((data.contracts || []).length > 0) benMuaBlock.style.display = 'block';
+                })
+                .catch(function () { /* ignore, người dùng vẫn có thể submit bình thường */ });
+        });
+
+        form.addEventListener('submit', function () {
+            var rows = [];
+            tbody.querySelectorAll('tr').forEach(function (tr) {
+                var label = tr.querySelector('.ben-ban-label').value.trim();
+                var value = tr.querySelector('.ben-ban-value').value;
+                if (label) rows.push({ label: label, value: value });
+            });
+            hiddenJson.value = JSON.stringify(rows);
+
+            var benMuaRows = [];
+            benMuaTbody.querySelectorAll('tr').forEach(function (tr) {
+                benMuaRows.push({
+                    soHD: tr.dataset.soHd,
+                    ten_cty: tr.querySelector('.ben-mua-ten-cty').value,
+                    mst: tr.querySelector('.ben-mua-mst').value,
+                    dia_chi: tr.querySelector('.ben-mua-dia-chi').value,
+                    dai_dien: tr.querySelector('.ben-mua-dai-dien').value,
+                    chuc_vu: tr.querySelector('.ben-mua-chuc-vu').value,
+                });
+            });
+            benMuaHiddenJson.value = JSON.stringify(benMuaRows);
+        });
+    })();
+</script>

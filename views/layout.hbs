@@ -154,10 +154,22 @@
               </a>
             </li>
             <li class="menu-item" id="menu-hop-dong">
-              <a href="/hop-dong-mua-ban" class="menu-link">
+              <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons bx bx-receipt"></i>
                 <div data-i18n="Contracts">Hợp đồng mua bán</div>
               </a>
+              <ul class="menu-sub">
+                <li class="menu-item" id="menu-hop-dong-tao">
+                  <a href="/hop-dong-mua-ban" class="menu-link">
+                    <div data-i18n="CreateContract">Tạo hợp đồng</div>
+                  </a>
+                </li>
+                <li class="menu-item" id="menu-cong-ty">
+                  <a href="/cong-ty" class="menu-link">
+                    <div data-i18n="Companies">Quản lý công ty</div>
+                  </a>
+                </li>
+              </ul>
             </li>
             <li class="menu-item" id="menu-don-dat-hang">
               <a href="/don-dat-hang-dich" class="menu-link">
@@ -679,9 +691,9 @@
       document.addEventListener('DOMContentLoaded', function() {
         const currentUrl = window.location.pathname;
 
-        // Remove active class from all menu items
+        // Remove active/open class from all menu items
         document.querySelectorAll('.menu-item').forEach(item => {
-          item.classList.remove('active');
+          item.classList.remove('active', 'open');
         });
 
         // Add active class to current page's menu item
@@ -690,7 +702,11 @@
         } else if (currentUrl.includes('/don-vi-tinh')) {
           document.getElementById('menu-don-vi').classList.add('active');
         } else if (currentUrl.includes('/hop-dong-mua-ban')) {
-          document.getElementById('menu-hop-dong').classList.add('active');
+          document.getElementById('menu-hop-dong').classList.add('active', 'open');
+          document.getElementById('menu-hop-dong-tao').classList.add('active');
+        } else if (currentUrl.includes('/cong-ty')) {
+          document.getElementById('menu-hop-dong').classList.add('active', 'open');
+          document.getElementById('menu-cong-ty').classList.add('active');
         } else if (currentUrl.includes('/don-dat-hang-dich')) {
           document.getElementById('menu-don-dat-hang').classList.add('active');
         } else if (currentUrl.includes('/bien-ban-giao-nhan-hang-hoa')) {

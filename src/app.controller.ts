@@ -19,6 +19,7 @@ import Docxtemplater from 'docxtemplater';
 import archiver from 'archiver';
 import { AppService } from './app.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { CompanyService } from './company/company.service';
 interface UploadedFileType {
   buffer: Buffer;
   originalname: string;
@@ -28,7 +29,10 @@ interface UploadedFileType {
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class AppController {
-  constructor(private readonly appService: AppService) { }
+  constructor(
+    private readonly appService: AppService,
+    private readonly companyService: CompanyService,
+  ) { }
 
   @Get()
   @UseGuards()
@@ -333,25 +337,18 @@ export class AppController {
 
   @Get('hop-dong-mua-ban')
   @Render('hopdongmuaban')
-  hopDongMuaBan() {
+  async hopDongMuaBan() {
+    const companies = await this.companyService.findAll();
     return {
       title: 'Tạo hợp đồng mua bán',
       message: 'Upload file Excel của bạn để tạo hợp đồng mua bán',
+      companies,
     };
   }
 
-  @Post('hop-dong-mua-ban/upload-excel')
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadHopDongMuaBan(@UploadedFile() file: UploadedFileType, @Res() res: any) {
-    if (!file) {
-      return res.render('hopdongmuaban', {
-        title: 'Tạo hợp đồng mua bán',
-        message: 'Upload file Excel của bạn để tạo hợp đồng mua bán',
-        error: 'Không có file nào được tải lên',
-      });
-    }
-
-    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+  // Đọc file Excel, gom theo SO_HD, trả về thông tin "Bên mua" thô lấy từ Excel (chưa render Word)
+  private parseHopDongExcelContracts(buffer: Buffer) {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames.find(name => name === 'Smart_KTSC_OK') || workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
 
@@ -393,7 +390,15 @@ export class AppController {
     };
 
     const seenSoHD = new Set<string>();
-    const contracts: { soHD: string; data: any }[] = [];
+    const contracts: {
+      soHD: string;
+      ngay: number | string;
+      thang: number | string;
+      nam: number | string;
+      ten_cty: string;
+      mst: string;
+      dia_chi: string;
+    }[] = [];
 
     jsonDataGoc.forEach((row: any, index: number) => {
       const soHD = row.SO_HD?.toString().trim();
@@ -404,15 +409,102 @@ export class AppController {
 
       contracts.push({
         soHD,
-        data: {
-          ngay: date.day,
-          thang: date.month,
-          nam: date.year,
-          ten_cty: getCellByCol(index, colAL),
-          mst: getCellByCol(index, colAK),
-          dia_chi: getCellByCol(index, colAN),
-        },
+        ngay: date.day,
+        thang: date.month,
+        nam: date.year,
+        ten_cty: getCellByCol(index, colAL),
+        mst: getCellByCol(index, colAK),
+        dia_chi: getCellByCol(index, colAN),
       });
+    });
+
+    return contracts;
+  }
+
+  // Dùng cho trang "Tạo hợp đồng mua bán": xem trước thông tin Bên mua lấy từ Excel để hiển thị input cho sửa
+  @Post('hop-dong-mua-ban/preview-excel')
+  @UseInterceptors(FileInterceptor('file'))
+  previewHopDongMuaBan(@UploadedFile() file: UploadedFileType) {
+    if (!file) return { contracts: [] };
+    const contracts = this.parseHopDongExcelContracts(file.buffer);
+    return { contracts };
+  }
+
+  @Post('hop-dong-mua-ban/upload-excel')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadHopDongMuaBan(
+    @UploadedFile() file: UploadedFileType,
+    @Body('companyId') companyId: string,
+    @Body('thongTinBanJson') thongTinBanJson: string,
+    @Body('benMuaJson') benMuaJson: string,
+    @Res() res: any,
+  ) {
+    const companies = await this.companyService.findAll();
+    if (!file) {
+      return res.render('hopdongmuaban', {
+        title: 'Tạo hợp đồng mua bán',
+        message: 'Upload file Excel của bạn để tạo hợp đồng mua bán',
+        error: 'Không có file nào được tải lên',
+        companies,
+      });
+    }
+
+    // Thông tin "Bên bán": tên công ty luôn lấy tươi từ DB (không cho sửa).
+    // Danh sách nhãn/giá trị mặc định lấy từ DB, nhưng nếu người dùng đã chỉnh sửa
+    // trên trang thì dùng bản đã sửa đó thay thế - việc sửa ở đây không ghi lại vào DB.
+    const benBanData: Record<string, any> = { ten_cty_ban: '', thong_tin_ban: [] };
+    if (companyId) {
+      const company = await this.companyService.findOne(Number(companyId));
+      Object.assign(benBanData, this.companyService.buildTemplateData(company));
+    }
+    if (thongTinBanJson) {
+      try {
+        const parsed = JSON.parse(thongTinBanJson);
+        if (Array.isArray(parsed)) {
+          benBanData.thong_tin_ban = parsed
+            .filter((row: any) => row && row.label)
+            .map((row: any) => ({ label: String(row.label), value: String(row.value ?? '') }));
+        }
+      } catch {
+        // JSON không hợp lệ -> giữ nguyên danh sách mặc định lấy từ DB
+      }
+    }
+
+    // Thông tin "Bên mua": mặc định lấy từ Excel (tên công ty, MST, địa chỉ theo từng SO_HD),
+    // "Đại diện" mặc định rỗng và "Chức vụ" mặc định "Giám đốc". Không có bảng database cho bên mua -
+    // nếu người dùng đã sửa trên trang (benMuaJson) thì dùng bản đã sửa đó thay cho dữ liệu Excel gốc.
+    const excelContracts = this.parseHopDongExcelContracts(file.buffer);
+    const benMuaOverrideBySoHD = new Map<string, any>();
+    if (benMuaJson) {
+      try {
+        const parsed = JSON.parse(benMuaJson);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((row: any) => {
+            if (row && row.soHD) benMuaOverrideBySoHD.set(String(row.soHD).trim(), row);
+          });
+        }
+      } catch {
+        // JSON không hợp lệ -> bỏ qua, dùng nguyên dữ liệu Excel
+      }
+    }
+
+    const contracts = excelContracts.map((excelContract) => {
+      const override = benMuaOverrideBySoHD.get(excelContract.soHD);
+      return {
+        soHD: excelContract.soHD,
+        data: {
+          so_hd: excelContract.soHD,
+          ngay: excelContract.ngay,
+          thang: excelContract.thang,
+          nam: excelContract.nam,
+          ten_cty: override?.ten_cty ?? excelContract.ten_cty,
+          mst: override?.mst ?? excelContract.mst,
+          dia_chi: override?.dia_chi ?? excelContract.dia_chi,
+          dai_dien: override?.dai_dien ?? '',
+          chuc_vu: override?.chuc_vu ?? 'Giám đốc',
+          ...benBanData,
+        },
+      };
     });
 
     if (contracts.length === 0) {
@@ -420,6 +512,7 @@ export class AppController {
         title: 'Tạo hợp đồng mua bán',
         message: 'Upload file Excel của bạn để tạo hợp đồng mua bán',
         error: 'Không tìm thấy số hợp đồng (SO_HD) hợp lệ trong file',
+        companies,
       });
     }
 
