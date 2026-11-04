@@ -183,6 +183,18 @@
                 <div data-i18n="Handover">Biên bản giao nhận hàng hóa</div>
               </a>
             </li>
+            <li class="menu-item" id="menu-don-dat-hang-ben-mua">
+              <a href="/don-dat-hang-ben-mua" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-cart-alt"></i>
+                <div data-i18n="OrdersBuyer">Đơn đặt hàng (bên mua)</div>
+              </a>
+            </li>
+            <li class="menu-item" id="menu-bien-ban-giao-nhan-ben-mua">
+              <a href="/bien-ban-giao-nhan-ben-mua" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-transfer-alt"></i>
+                <div data-i18n="HandoverBuyer">Biên bản giao nhận (bên mua)</div>
+              </a>
+            </li>
 
             <!-- Layouts -->
             {{!-- <li class="menu-item">
@@ -711,6 +723,10 @@
           document.getElementById('menu-don-dat-hang').classList.add('active');
         } else if (currentUrl.includes('/bien-ban-giao-nhan-hang-hoa')) {
           document.getElementById('menu-bien-ban-giao-nhan').classList.add('active');
+        } else if (currentUrl.includes('/don-dat-hang-ben-mua')) {
+          document.getElementById('menu-don-dat-hang-ben-mua').classList.add('active');
+        } else if (currentUrl.includes('/bien-ban-giao-nhan-ben-mua')) {
+          document.getElementById('menu-bien-ban-giao-nhan-ben-mua').classList.add('active');
         }
       });
     </script>

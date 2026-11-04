@@ -867,6 +867,291 @@ export class AppController {
     res.send(zipBuffer);
   }
 
+  private parseExcelDateVal(val: any): { day: number; month: number; year: number } | null {
+    if (!val) return null;
+    let d: Date;
+    if (val instanceof Date) {
+      d = val;
+    } else if (typeof val === 'number') {
+      d = new Date((val - 25569) * 86400000);
+    } else {
+      d = new Date(val);
+      if (isNaN(d.getTime())) return null;
+    }
+    return { day: d.getUTCDate(), month: d.getUTCMonth() + 1, year: d.getUTCFullYear() };
+  }
+
+  private formatSoTienVal(val: number) {
+    return Number(val || 0).toLocaleString('en-US');
+  }
+
+  @Get('don-dat-hang-ben-mua')
+  @Render('don-dat-hang-ben-mua')
+  donDatHangBenMua() {
+    return {
+      title: 'Tạo đơn đặt hàng (bên mua)',
+      message: 'Upload file Excel của bạn để tạo đơn đặt hàng',
+    };
+  }
+
+  @Post('don-dat-hang-ben-mua/upload-excel')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDonDatHangBenMua(@UploadedFile() file: UploadedFileType, @Res() res: any) {
+    if (!file) {
+      return res.render('don-dat-hang-ben-mua', {
+        title: 'Tạo đơn đặt hàng (bên mua)',
+        message: 'Upload file Excel của bạn để tạo đơn đặt hàng',
+        error: 'Không có file nào được tải lên',
+      });
+    }
+
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames.find(name => name === 'Smart_KTSC_OK') || workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+
+    const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: '', blankrows: true });
+    const jsonDataGoc = rawData.map((row: any) => {
+      const cleanRow: any = {};
+      Object.keys(row).forEach(key => {
+        if (!key.startsWith('__EMPTY')) cleanRow[key] = row[key];
+      });
+      return cleanRow;
+    });
+
+    // "Công ty" (Người Mua) và "Địa điểm giao hàng" (Địa chỉ người mua) lấy ở cột F, G của sheet
+    // HoaDon_TongQuat, dữ liệu bắt đầu từ dòng 5 (dòng 1-3: tiêu đề/MST/Tên DN, dòng 4: header cột).
+    // Giá trị ở cột F, G là thông tin công ty của chính mình (bên mua), giống nhau ở mọi dòng nên chỉ cần lấy dòng đầu tiên.
+    const hoaDonTongQuatSheetName = workbook.SheetNames.find(name => name === 'HoaDon_TongQuat');
+    let congTy = '';
+    let diaDiemGiaoHang = '';
+    if (hoaDonTongQuatSheetName) {
+      const hoaDonTongQuatSheet = workbook.Sheets[hoaDonTongQuatSheetName];
+      congTy = hoaDonTongQuatSheet['F5']?.v ?? '';
+      diaDiemGiaoHang = hoaDonTongQuatSheet['G5']?.v ?? '';
+    }
+
+    const seenSoHD = new Set<string>();
+    const orders: { soHD: string; data: any }[] = [];
+
+    jsonDataGoc.forEach((row: any) => {
+      const soHD = row.SO_HD?.toString().trim();
+      if (!soHD || seenSoHD.has(soHD)) return;
+      seenSoHD.add(soHD);
+
+      const date = this.parseExcelDateVal(row.NGAY_KY) ?? { day: '', month: '', year: '' };
+      const soHdDisplay = date.day !== ''
+        ? `01${String(date.day).padStart(2, '0')}${String(date.month).padStart(2, '0')}${date.year}`
+        : '01';
+
+      const dateGiaoHang = this.parseExcelDateVal(row.NGAYCT) ?? { day: '', month: '', year: '' };
+      const thoiGianGiaoHang = dateGiaoHang.day !== ''
+        ? `${String(dateGiaoHang.day).padStart(2, '0')}/${String(dateGiaoHang.month).padStart(2, '0')}/${dateGiaoHang.year}`
+        : '';
+
+      const chiTietRaw = jsonDataGoc
+        .filter((r: any) => r.SO_HD?.toString().trim() === soHD)
+        .map((r: any, idx: number) => ({
+          stt: idx + 1,
+          ten_sp: r.MATHANG,
+          dvt: r.DONVI,
+          sl: Number(r.LUONG) || 0,
+          don_gia: Math.round(r.DGVND) || 0,
+          thanh_tien: Math.round(r.TTVND) || 0,
+        }));
+
+      const tongCong = chiTietRaw.reduce((sum, item) => sum + item.thanh_tien, 0);
+      const chiTiet = chiTietRaw.map(item => ({
+        ...item,
+        sl: this.formatSoTienVal(item.sl),
+        don_gia: this.formatSoTienVal(item.don_gia),
+        thanh_tien: this.formatSoTienVal(item.thanh_tien),
+      }));
+
+      orders.push({
+        soHD,
+        data: {
+          so_hd_display: soHdDisplay,
+          kinh_gui: row.TENKH,
+          cong_ty: congTy,
+          ngay: date.day,
+          thang: date.month,
+          nam: date.year,
+          thoi_gian_giao_hang: thoiGianGiaoHang,
+          dia_diem_giao_hang: diaDiemGiaoHang,
+          chi_tiet: chiTiet,
+          tong_cong: this.formatSoTienVal(tongCong),
+        },
+      });
+    });
+
+    if (orders.length === 0) {
+      return res.render('don-dat-hang-ben-mua', {
+        title: 'Tạo đơn đặt hàng (bên mua)',
+        message: 'Upload file Excel của bạn để tạo đơn đặt hàng',
+        error: 'Không tìm thấy số hóa đơn (SO_HD) hợp lệ trong file',
+      });
+    }
+
+    const templatePath = join(__dirname, '..', 'templates', 'don-dat-hang-ben-mua-template.docx');
+    const templateContent = fs.readFileSync(templatePath, 'binary');
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    const chunks: Buffer[] = [];
+    archive.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    for (const order of orders) {
+      const zip = new PizZip(templateContent);
+      const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+      doc.render(order.data);
+      const buffer = doc.getZip().generate({ type: 'nodebuffer' });
+      archive.append(buffer, { name: `DonDatHang_${order.soHD}.docx` });
+    }
+
+    await archive.finalize();
+    const zipBuffer = Buffer.concat(chunks);
+
+    const now = new Date();
+    const dateHienTai = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${now.getFullYear()}`;
+
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="DonDatHangBenMua_${dateHienTai}.zip"`,
+    });
+    res.send(zipBuffer);
+  }
+
+  @Get('bien-ban-giao-nhan-ben-mua')
+  @Render('bien-ban-giao-nhan-ben-mua')
+  bienBanGiaoNhanBenMua() {
+    return {
+      title: 'Tạo biên bản giao nhận (bên mua)',
+      message: 'Upload file Excel của bạn để tạo biên bản giao nhận',
+    };
+  }
+
+  @Post('bien-ban-giao-nhan-ben-mua/upload-excel')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadBienBanGiaoNhanBenMua(@UploadedFile() file: UploadedFileType, @Res() res: any) {
+    if (!file) {
+      return res.render('bien-ban-giao-nhan-ben-mua', {
+        title: 'Tạo biên bản giao nhận (bên mua)',
+        message: 'Upload file Excel của bạn để tạo biên bản giao nhận',
+        error: 'Không có file nào được tải lên',
+      });
+    }
+
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames.find(name => name === 'Smart_KTSC_OK') || workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+
+    const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: '', blankrows: true });
+    const jsonDataGoc = rawData.map((row: any) => {
+      const cleanRow: any = {};
+      Object.keys(row).forEach(key => {
+        if (!key.startsWith('__EMPTY')) cleanRow[key] = row[key];
+      });
+      return cleanRow;
+    });
+
+    const colAL = XLSX.utils.decode_col('AL');
+    const colAN = XLSX.utils.decode_col('AN');
+    const colE = XLSX.utils.decode_col('E');
+
+    const getCellByCol = (sheet: XLSX.WorkSheet, dataRowIndex: number, colIndex: number) => {
+      const addr = XLSX.utils.encode_cell({ r: dataRowIndex + 1, c: colIndex });
+      return sheet[addr]?.v ?? '';
+    };
+
+    // "Bên A" (Bên nhận hàng = chính mình = Người Mua) lấy ở cột F, G của sheet HoaDon_TongQuat,
+    // dữ liệu bắt đầu từ dòng 5, giống nhau ở mọi dòng nên chỉ cần lấy dòng đầu tiên.
+    const hoaDonTongQuatSheetName = workbook.SheetNames.find(name => name === 'HoaDon_TongQuat');
+    let tenCtyA = '';
+    let diaChiA = '';
+    if (hoaDonTongQuatSheetName) {
+      const hoaDonTongQuatSheet = workbook.Sheets[hoaDonTongQuatSheetName];
+      tenCtyA = hoaDonTongQuatSheet['F5']?.v ?? '';
+      diaChiA = hoaDonTongQuatSheet['G5']?.v ?? '';
+    }
+
+    const seenSoHD = new Set<string>();
+    const bienBans: { soHD: string; data: any }[] = [];
+
+    jsonDataGoc.forEach((row: any, index: number) => {
+      const soHD = row.SO_HD?.toString().trim();
+      if (!soHD || seenSoHD.has(soHD)) return;
+      seenSoHD.add(soHD);
+
+      // "Bên B" (Bên giao hàng = nhà cung cấp) lấy ở cột AL (tên), AN (địa chỉ) của sheet Smart_KTSC_OK.
+      const date = this.parseExcelDateVal(getCellByCol(worksheet, index, colE)) ?? { day: '', month: '', year: '' };
+      const soBb = date.day !== ''
+        ? `01${String(date.day).padStart(2, '0')}${String(date.month).padStart(2, '0')}${date.year}`
+        : '01';
+      const ngayDatHang = date.day !== ''
+        ? `${String(date.day).padStart(2, '0')}/${String(date.month).padStart(2, '0')}/${date.year}`
+        : '';
+
+      const chiTiet = jsonDataGoc
+        .filter((r: any) => r.SO_HD?.toString().trim() === soHD)
+        .map((r: any, idx: number) => ({
+          stt: idx + 1,
+          ten_sp: r.MATHANG,
+          dvt: r.DONVI,
+          sl: r.LUONG,
+        }));
+
+      bienBans.push({
+        soHD,
+        data: {
+          so_bb: soBb,
+          ngay: date.day,
+          thang: date.month,
+          nam: date.year,
+          ngay_dat_hang: ngayDatHang,
+          ten_cty_a: tenCtyA,
+          dia_chi_a: diaChiA,
+          ten_cty_b: getCellByCol(worksheet, index, colAL),
+          dia_chi_b: getCellByCol(worksheet, index, colAN),
+          chi_tiet: chiTiet,
+        },
+      });
+    });
+
+    if (bienBans.length === 0) {
+      return res.render('bien-ban-giao-nhan-ben-mua', {
+        title: 'Tạo biên bản giao nhận (bên mua)',
+        message: 'Upload file Excel của bạn để tạo biên bản giao nhận',
+        error: 'Không tìm thấy số hóa đơn (SO_HD) hợp lệ trong file',
+      });
+    }
+
+    const templatePath = join(__dirname, '..', 'templates', 'bien-ban-giao-nhan-ben-mua-template.docx');
+    const templateContent = fs.readFileSync(templatePath, 'binary');
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    const chunks: Buffer[] = [];
+    archive.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    for (const bienBan of bienBans) {
+      const zip = new PizZip(templateContent);
+      const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+      doc.render(bienBan.data);
+      const buffer = doc.getZip().generate({ type: 'nodebuffer' });
+      archive.append(buffer, { name: `BienBanGiaoNhan_${bienBan.soHD}.docx` });
+    }
+
+    await archive.finalize();
+    const zipBuffer = Buffer.concat(chunks);
+
+    const now = new Date();
+    const dateHienTai = `${String(now.getDate()).padStart(2, '0')}${String(now.getMonth() + 1).padStart(2, '0')}${now.getFullYear()}`;
+
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="BienBanGiaoNhanBenMua_${dateHienTai}.zip"`,
+    });
+    res.send(zipBuffer);
+  }
+
   @Get('about')
   @Render('about')
   getAbout() {
